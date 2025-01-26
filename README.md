@@ -1,3 +1,3 @@
-## tool
+## Tuel
 
-Programming is tools fetching, this is a tool that helps that.
+Programming is tools (API) fetching, Tuel can is a tuel for that.
