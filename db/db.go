@@ -16,3 +16,18 @@ func ConnectDB() *sql.DB {
 	fmt.Printf("Database %s opened\n", dsn)
 	return db
 }
+
+func CreateTable(db *sql.DB) {
+	// TODO: check if table exists before creating one
+	q := `
+CREATE TABLE tool (
+	id INTEGER PRIMARY KEY,
+	name TEXT,
+	desc TEST
+);
+	`
+	_, err := db.Query(q)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

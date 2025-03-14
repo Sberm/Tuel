@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"database/sql"
 	"log"
+	"tuel/db"
 )
 
 // write tool item
@@ -26,7 +27,8 @@ func getToolset(w http.ResponseWriter, r *http.Request) {
 	log.Print("get toolset")
 }
 
-func StartBackend(db *sql.DB) {
+func StartBackend(_db *sql.DB) {
+	db.CreateTable(_db)
 	http.HandleFunc("/put", put)
 	http.HandleFunc("/get", get)
 	http.HandleFunc("/getset", getToolset)
