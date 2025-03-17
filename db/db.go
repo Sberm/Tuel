@@ -17,15 +17,15 @@ func ConnectDB() *sql.DB {
 	return db
 }
 
-func CreateTable(db *sql.DB) {
-	// TODO: check if table exists before creating one
-	q := `
-CREATE TABLE tool (
-	id INTEGER PRIMARY KEY,
-	name TEXT,
-	desc TEST
-);
-	`
+func CreateTableIfNone(db *sql.DB) {
+	tableName := "tool"
+	q := fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS %s (
+		id INTEGER PRIMARY KEY,
+		name TEXT,
+		desc TEST
+	);
+	`, tableName)
 	_, err := db.Query(q)
 	if err != nil {
 		log.Fatal(err)

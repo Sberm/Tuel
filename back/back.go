@@ -28,7 +28,7 @@ func getToolset(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartBackend(_db *sql.DB) {
-	db.CreateTable(_db)
+	db.CreateTableIfNone(_db)
 	http.HandleFunc("/put", put)
 	http.HandleFunc("/get", get)
 	http.HandleFunc("/getset", getToolset)
