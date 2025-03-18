@@ -22,7 +22,7 @@ type Toolset struct {
 }
 
 type Name struct {
-	Name string `json: name`
+	Name string `json:name`
 }
 
 var database *sql.DB
