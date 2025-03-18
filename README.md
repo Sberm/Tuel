@@ -2,4 +2,8 @@
 
 Programming is tools fetching, this is a tool that helps with that.
 
-> 'tuel' is how Irish people pronounce 'tool'
+> 'tuel' is how Irish people / scousers pronounce 'tool'
+
+### TODO
+- [ ] Build indices for regex / fuzzy search on name & descriptions
+- [ ] Frontend
