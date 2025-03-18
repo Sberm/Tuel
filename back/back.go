@@ -8,7 +8,6 @@ import (
 	"io"
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 type Tool struct {
@@ -41,14 +40,11 @@ func put(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Unmarshal failed, err:", err)
 	}
-	// sql single quote escape
-	tool.Name = strings.Replace(tool.Name, "'", "''", -1)
-	tool.Descr = strings.Replace(tool.Descr, "'", "''", -1)
 	q := fmt.Sprintf(`
-INSERT INTO %s (name, descr)
-VALUES ('%s', '%s')
-	`, toolTable, tool.Name, tool.Descr)
-	result, err := database.Exec(q)
+INSERT INTO %s(name, descr)
+VALUES (?, ?)
+	`, toolTable)
+	result, err := database.Exec(q, tool.Name, tool.Descr)
 	if err != nil {
 		log.Printf("Insert failed in put(), name: \"%s\", descr: \"%s\". err: %s",
 		tool.Name, tool.Descr, err)
@@ -72,13 +68,11 @@ func get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Unmarshal failed, err:", err)
 	}
-	// sql single quote escape
-	name.Name = strings.Replace(name.Name, "'", "''", -1)
 	q := fmt.Sprintf(`
 SELECT name, descr FROM %s
-WHERE name = '%s'
-	`, toolTable, name.Name)
-	rows, err := database.Query(q)
+WHERE name = ?
+	`, toolTable)
+	rows, err := database.Query(q, name.Name)
 	defer rows.Close()
 	if err != nil {
 		log.Printf("select failed in get(), name: \"%s\". err: %s",
@@ -123,14 +117,11 @@ func putToolset(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Unmarshal failed, err:", err)
 	}
-	// sql single quote escape
-	toolset.Name = strings.Replace(toolset.Name, "'", "''", -1)
-	toolset.Descr = strings.Replace(toolset.Descr, "'", "''", -1)
 	q := fmt.Sprintf(`
 INSERT INTO %s(name, descr)
-VALUES ('%s', '%s')
-	`, toolsetTable, toolset.Name, toolset.Descr)
-	result, err := database.Exec(q)
+VALUES (?, ?)
+	`, toolsetTable)
+	result, err := database.Exec(q, toolset.Name, toolset.Descr)
 	if err != nil {
 		log.Printf("Insert failed in putToolset(), name: \"%s\", descr: \"%s\". err: %s",
 		toolset.Name, toolset.Descr, err)
@@ -154,13 +145,11 @@ func getToolset(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Unmarshal failed, err:", err)
 	}
-	// sql single quote escape
-	name.Name = strings.Replace(name.Name, "'", "''", -1)
 	q := fmt.Sprintf(`
 SELECT name, descr FROM %s
-WHERE name = '%s'
-	`, toolsetTable, name.Name)
-	rows, err := database.Query(q)
+WHERE name = ?
+	`, toolsetTable)
+	rows, err := database.Query(q, name.Name)
 	defer rows.Close()
 	if err != nil {
 		log.Printf("select failed in getToolset(), name: \"%s\". err: %s",
