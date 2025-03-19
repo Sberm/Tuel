@@ -18,18 +18,18 @@ type Tool struct {
 type ToolWId struct {
 	Id uint64 `json:"id"`
 	Name string `json:"name"`
-	Descr string `json:"descr"` // description
+	Descr string `json:"descr"`
 }
 
 type Toolset struct {
 	Name string `json:"name"`
-	Descr string `json:"descr"` // description
+	Descr string `json:"descr"`
 }
 
 type ToolsetWId struct {
 	Id uint64 `json:"id"`
 	Name string `json:"name"`
-	Descr string `json:"descr"` // description
+	Descr string `json:"descr"`
 }
 
 type Name struct {
