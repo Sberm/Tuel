@@ -1,34 +1,34 @@
-package back;
+package back
 
 import (
-	"net/http"
 	"database/sql"
-	"log"
-	"tuel/db"
-	"io"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"tuel/db"
 )
 
 type Tool struct {
-	Name string `json:"name"`
+	Name  string `json:"name"`
 	Descr string `json:"descr"` // description
 }
 
 type ToolWId struct {
-	Id uint64 `json:"id"`
-	Name string `json:"name"`
+	Id    int64  `json:"id"`
+	Name  string `json:"name"`
 	Descr string `json:"descr"`
 }
 
 type Toolset struct {
-	Name string `json:"name"`
+	Name  string `json:"name"`
 	Descr string `json:"descr"`
 }
 
 type ToolsetWId struct {
-	Id uint64 `json:"id"`
-	Name string `json:"name"`
+	Id    int64  `json:"id"`
+	Name  string `json:"name"`
 	Descr string `json:"descr"`
 }
 
@@ -37,51 +37,91 @@ type Name struct {
 }
 
 type Id struct {
-	Id uint64 `json:"id"`
+	Id int64 `json:"id"`
 }
 
 var database *sql.DB
 var toolTable string
 var toolsetTable string
 
-// write tool item, return an id
+// put tool (upsert)
+// {id, name, descr} | {name, dscr} -> {code, id}
+// the returned id is the updated one or the newly created one
 func put(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
-	tool := Tool{}
-	err = json.Unmarshal(body, &tool)
+	toolWId := ToolWId{Id: -1}
+	err = json.Unmarshal(body, &toolWId)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
-	q := fmt.Sprintf(`
+	var q string
+	var result sql.Result
+	if toolWId.Id != -1 {
+		q = fmt.Sprintf(`
+UPDATE %s
+SET name = ?, descr = ?
+WHERE id = ?
+		`, toolTable)
+		result, err = database.Exec(q, toolWId.Name, toolWId.Descr, toolWId.Id)
+	} else {
+		q = fmt.Sprintf(`
 INSERT INTO %s(name, descr)
 VALUES (?, ?)
-	`, toolTable)
-	result, err := database.Exec(q, tool.Name, tool.Descr)
+		`, toolTable)
+		result, err = database.Exec(q, toolWId.Name, toolWId.Descr)
+	}
 	if err != nil {
-		log.Printf("Insert failed in put(), name: \"%s\", descr: \"%s\". err: %s",
-		tool.Name, tool.Descr, err)
+		code = 400
+		msg = "sql query failed"
+		log.Printf("put failed in put(), id: \"%d\", name: \"%s\", descr: \"%s\". err: %s",
+			toolWId.Id, toolWId.Name, toolWId.Descr, err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("failed to get rows affected, err:", err)
+	}
+	if rowsAffected == 0 {
+		code = 400
+		if toolWId.Id == -1 {
+			msg = "insert failed"
+		} else {
+			msg = "no records found with this id"
+		}
 	}
 	log.Println("put() rows affected", rowsAffected)
 
 	type Resp struct {
-		Code int `json:"code"`
-		Id uint64 `json:"id"`
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+		Id   int64  `json:"id"`
 	}
-	_id, err := result.LastInsertId()
-	if err != nil {
-		log.Println("failed to get last insert id in put(), err:", err)
+	var _id int64
+	if toolWId.Id == -1 {
+		_id, err = result.LastInsertId()
+		if err != nil {
+			code = 400
+			msg = "internal error"
+			log.Println("failed to get last insert id in put(), err:", err)
+		}
+	} else {
+		_id = toolWId.Id
 	}
 	resp := Resp{
-		Code: 200,
-		Id: uint64(_id),
+		Code: code,
+		Msg:  msg,
+		Id:   _id,
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -95,14 +135,20 @@ VALUES (?, ?)
 
 // get tool info using name, return [{id, name, descr}]
 func get(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
 	name := Name{}
 	err = json.Unmarshal(body, &name)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
 	q := fmt.Sprintf(`
@@ -112,27 +158,34 @@ WHERE name = ?
 	rows, err := database.Query(q, name.Name)
 	defer rows.Close()
 	if err != nil {
+		code = 400
+		msg = "sql query failed"
 		log.Printf("select failed in get(), name: \"%s\". err: %s",
-		name.Name, err)
+			name.Name, err)
 	}
 	var toolsWId []ToolWId
-	var id uint64
+	var id int64
 	var _name string
 	var descr string
 	for rows.Next() {
 		err = rows.Scan(&id, &_name, &descr)
 		if err != nil {
+			code = 400
+			msg = "scan failed"
 			log.Println("scan failed in get(), err:", err)
+			break
 		}
 		toolsWId = append(toolsWId, ToolWId{Id: id, Name: _name, Descr: descr})
 	}
 
 	type Resp struct {
-		Code int `json:"code"`
+		Code    int       `json:"code"`
+		Msg     string    `json:"msg"`
 		ToolWId []ToolWId `json:"tools"`
 	}
-	resp := Resp {
-		Code: 200,
+	resp := Resp{
+		Code:    code,
+		Msg:     msg,
 		ToolWId: toolsWId,
 	}
 	data, err := json.Marshal(resp)
@@ -148,14 +201,20 @@ WHERE name = ?
 
 // get tool info using id, return {name, descr}
 func getUsingId(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
 	q := fmt.Sprintf(`
@@ -165,23 +224,42 @@ WHERE id = ?
 	row := database.QueryRow(q, id.Id)
 	tool := Tool{}
 	recordNr := 1
-	row.Scan(&tool.Name, &tool.Descr)
+	err = row.Scan(&tool.Name, &tool.Descr)
 	if err != nil {
+		code = 400
+		msg = "scan failed"
 		if err == sql.ErrNoRows {
 			recordNr = 0
+			msg = "no records found"
+		} else {
+			log.Println("query failed in getUsingId(), err:", err)
 		}
-		log.Println("query failed in getUsingId(), err:", err)
 	}
 
 	type Resp struct {
-		Code int `json:"code"`
-		Tool Tool `json:"tool"`
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+		Tool Tool   `json:"tool"`
 	}
-	resp := Resp {
-		Code: 200,
-		Tool: tool,
+	type RespOnError struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
 	}
-	data, err := json.Marshal(resp)
+	var data []byte
+	if code == 200 {
+		resp := Resp{
+			Code: code,
+			Msg:  msg,
+			Tool: tool,
+		}
+		data, err = json.Marshal(resp)
+	} else {
+		resp := RespOnError{
+			Code: code,
+			Msg:  msg,
+		}
+		data, err = json.Marshal(resp)
+	}
 	if err != nil {
 		log.Println("marshal failed in getUsingId(), err:", err)
 	}
@@ -192,44 +270,141 @@ WHERE id = ?
 	log.Printf("getUsingId(): got %d record\n", recordNr)
 }
 
-// put toolset
-func putToolset(w http.ResponseWriter, r *http.Request) {
+// {"id": 1} -> {"code": 200}
+// for tool and toolset
+func del(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
+	path := r.URL.Path
+	var tableName string
+	if path == "/del" {
+		tableName = "tool"
+		log.Println("deleting tool")
+	} else if path == "/delset" {
+		tableName = "toolset"
+		log.Println("deleting toolset")
+	}
+
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
-	toolset := Toolset{}
-	err = json.Unmarshal(body, &toolset)
+	id := Id{}
+	err = json.Unmarshal(body, &id)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
 	q := fmt.Sprintf(`
-INSERT INTO %s(name, descr)
-VALUES (?, ?)
-	`, toolsetTable)
-	result, err := database.Exec(q, toolset.Name, toolset.Descr)
+DELETE FROM %s
+WHERE id = ?
+	`, tableName)
+	result, err := database.Exec(q, id.Id)
 	if err != nil {
-		log.Printf("Insert failed in putToolset(), name: \"%s\", descr: \"%s\". err: %s",
-		toolset.Name, toolset.Descr, err)
+		code = 400
+		msg = "sql query failed"
+		log.Printf("Insert failed in del(), id: \"%d\". err: %s", id.Id, err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		code = 400
+		msg = "internal error"
+		log.Println("failed to get rows affected, err:", err)
+	}
+	log.Println("del() rows affected", rowsAffected)
+
+	type Resp struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	resp := Resp{
+		Code: code,
+		Msg:  msg,
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		log.Println("marshal failed in put(), err:", err)
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		log.Println("write response data failed in put(), err:", err)
+	}
+}
+
+// put toolset (upsert)
+// {id, name, descr} | {name, dscr} -> {code, id}
+// the returned id is the updated one or the newly created one
+func putToolset(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		code = 400
+		msg = "internal error"
+		log.Println("Failed to read the request body")
+	}
+	toolsetWId := ToolsetWId{Id: -1}
+	err = json.Unmarshal(body, &toolsetWId)
+	if err != nil {
+		code = 400
+		msg = "internal error"
+		log.Println("Unmarshal failed, err:", err)
+	}
+	var q string
+	var result sql.Result
+	if toolsetWId.Id != -1 {
+		q = fmt.Sprintf(`
+UPDATE %s
+SET name = ?, descr = ?
+WHERE id = ?
+		`, toolsetTable)
+		result, err = database.Exec(q, toolsetWId.Name, toolsetWId.Descr, toolsetWId.Id)
+	} else {
+		q = fmt.Sprintf(`
+INSERT INTO %s(name, descr)
+VALUES (?, ?)
+		`, toolsetTable)
+		result, err = database.Exec(q, toolsetWId.Name, toolsetWId.Descr)
+	}
+	if err != nil {
+		code = 400
+		msg = "sql query failed"
+		log.Printf("put failed in putToolset(), id: \"%d\", name: \"%s\", descr: \"%s\". err: %s",
+			toolsetWId.Id, toolsetWId.Name, toolsetWId.Descr, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("failed to get rows affected, err:", err)
 	}
 	log.Println("putToolset() rows affected", rowsAffected)
 
 	type Resp struct {
-		Code int `json:"code"`
-		Id uint64 `json:"id"`
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+		Id   int64  `json:"id"`
 	}
-	_id, err := result.LastInsertId()
-	if err != nil {
-		log.Println("failed to get last insert id in putToolset(), err:", err)
+	var _id int64
+	if toolsetWId.Id == -1 {
+		_id, err = result.LastInsertId()
+		if err != nil {
+			code = 400
+			msg = "internal error"
+			log.Println("failed to get last insert id in putToolset(), err:", err)
+		}
+	} else {
+		_id = toolsetWId.Id
 	}
 	resp := Resp{
-		Code: 200,
-		Id: uint64(_id),
+		Code: code,
+		Msg:  msg,
+		Id:   _id,
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -243,14 +418,20 @@ VALUES (?, ?)
 
 // get toolset info using name, return [{id, name, descr}]
 func getToolset(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
 	name := Name{}
 	err = json.Unmarshal(body, &name)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
 	q := fmt.Sprintf(`
@@ -260,27 +441,34 @@ WHERE name = ?
 	rows, err := database.Query(q, name.Name)
 	defer rows.Close()
 	if err != nil {
+		code = 400
+		msg = "sql query failed"
 		log.Printf("select failed in getToolset(), name: \"%s\". err: %s",
-		name.Name, err)
+			name.Name, err)
 	}
 	var toolsetsWId []ToolsetWId
-	var id uint64
+	var id int64
 	var _name string
 	var descr string
 	for rows.Next() {
 		err = rows.Scan(&id, &_name, &descr)
 		if err != nil {
+			code = 400
+			msg = "scan failed"
 			log.Println("scan failed in getToolset(), err:", err)
+			break
 		}
 		toolsetsWId = append(toolsetsWId, ToolsetWId{Id: id, Name: _name, Descr: descr})
 	}
 
 	type Resp struct {
-		Code int `json:"code"`
+		Code       int          `json:"code"`
+		Msg        string       `json:"msg"`
 		ToolsetWId []ToolsetWId `json:"toolsets"`
 	}
-	resp := Resp {
-		Code: 200,
+	resp := Resp{
+		Code:       code,
+		Msg:        msg,
 		ToolsetWId: toolsetsWId,
 	}
 	data, err := json.Marshal(resp)
@@ -296,14 +484,20 @@ WHERE name = ?
 
 // get toolset info using id, return {name, descr}
 func getToolsetUsingId(w http.ResponseWriter, r *http.Request) {
+	code := 200
+	msg := "success"
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Failed to read the request body")
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
 	if err != nil {
+		code = 400
+		msg = "internal error"
 		log.Println("Unmarshal failed, err:", err)
 	}
 	q := fmt.Sprintf(`
@@ -315,21 +509,40 @@ WHERE id = ?
 	recordNr := 1
 	err = row.Scan(&toolset.Name, &toolset.Descr)
 	if err != nil {
+		code = 400
+		msg = "scan failed"
 		if err == sql.ErrNoRows {
 			recordNr = 0
+			msg = "no records found"
+		} else {
+			log.Println("query failed in getToolsetUsingId(), err:", err)
 		}
-		log.Println("query failed in getToolsetUsingId(), err:", err)
 	}
 
 	type Resp struct {
-		Code int `json:"code"`
+		Code    int     `json:"code"`
+		Msg     string  `json:"msg"`
 		Toolset Toolset `json:"toolset"`
 	}
-	resp := Resp {
-		Code: 200,
-		Toolset: toolset,
+	type RespOnError struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
 	}
-	data, err := json.Marshal(resp)
+	var data []byte
+	if code == 200 {
+		resp := Resp{
+			Code:    code,
+			Msg:     msg,
+			Toolset: toolset,
+		}
+		data, err = json.Marshal(resp)
+	} else {
+		resp := RespOnError{
+			Code: code,
+			Msg:  msg,
+		}
+		data, err = json.Marshal(resp)
+	}
 	if err != nil {
 		log.Println("marshal failed in getToolsetUsingId(), err:", err)
 	}
@@ -348,9 +561,12 @@ func StartBackend(_db *sql.DB) {
 	http.HandleFunc("/put", put)
 	http.HandleFunc("/get", get)
 	http.HandleFunc("/getid", getUsingId)
+	http.HandleFunc("/del", del)
+
 	http.HandleFunc("/putset", putToolset)
 	http.HandleFunc("/getset", getToolset)
 	http.HandleFunc("/getsetid", getToolsetUsingId)
+	http.HandleFunc("/delset", del) // deleting the toolset here too
 	port := ":9160"
 	fmt.Println("Serving backend on http://localhost" + port)
 	http.ListenAndServe(port, nil)

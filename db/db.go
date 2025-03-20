@@ -1,10 +1,10 @@
-package db;
+package db
 
-import(
+import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
-	"fmt"
 )
 
 func ConnectDB() *sql.DB {

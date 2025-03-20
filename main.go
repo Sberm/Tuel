@@ -1,10 +1,10 @@
 package main
 
 import (
+	"sync"
+	"tuel/back"
 	"tuel/db"
 	"tuel/serve"
-	"tuel/back"
-	"sync"
 )
 
 func main() {

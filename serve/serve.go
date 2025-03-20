@@ -1,8 +1,8 @@
-package serve;
+package serve
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 func ServeHtml() {
@@ -10,5 +10,5 @@ func ServeHtml() {
 	serveDir := "serve"
 	fmt.Printf("Serving HTML at http://localhost:%s\n", port)
 	http.Handle("/", http.FileServer(http.Dir(serveDir)))
-	http.ListenAndServe(":" + port, nil)
+	http.ListenAndServe(":"+port, nil)
 }
