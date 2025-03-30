@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS %s (
 }
 
 func TurnOnForeignKey(db *sql.DB) {
-	_, err := db.Exec("PRAGMA foreign_keys = ON;");
+	_, err := db.Exec("PRAGMA foreign_keys = ON;")
 	if err != nil {
 		log.Println("foreign key contraint cannot be turned on")
 	}

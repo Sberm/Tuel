@@ -61,7 +61,7 @@ func put(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	toolWId := ToolWId{Id: -1}
 	err = json.Unmarshal(body, &toolWId)
@@ -150,7 +150,7 @@ func get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	name := Name{}
 	err = json.Unmarshal(body, &name)
@@ -217,7 +217,7 @@ func getUsingId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
@@ -289,9 +289,12 @@ func del(w http.ResponseWriter, r *http.Request) {
 	if path == "/del" {
 		tableName = "tool"
 		log.Println("deleting tool")
-	} else if path == "/delset" {
+	} else if path == "/toolset/del" {
 		tableName = "toolset"
 		log.Println("deleting toolset")
+	} else {
+		tableName = "tool"
+		log.Println("don't know what to delete, so deleting tool")
 	}
 
 	defer r.Body.Close()
@@ -299,7 +302,7 @@ func del(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
@@ -350,7 +353,7 @@ func putToolset(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	toolsetWId := ToolsetWId{Id: -1}
 	err = json.Unmarshal(body, &toolsetWId)
@@ -428,7 +431,7 @@ func getToolset(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	name := Name{}
 	err = json.Unmarshal(body, &name)
@@ -494,7 +497,7 @@ func getToolsetUsingId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
@@ -570,7 +573,7 @@ func addToolToSet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	idPair := IdPair{}
 	err = json.Unmarshal(body, &idPair)
@@ -588,7 +591,7 @@ VALUES (?, ?)
 	if err != nil {
 		code = 400
 		msg = "sql query failed"
-		log.Printf("add tool to toolset failed tool_id: %d, toolset_id: %d\n", idPair.ToolId, idPair.ToolsetId)
+		log.Printf("add tool to toolset failed tool_id: %d, toolset_id: %d, err: %s\n", idPair.ToolId, idPair.ToolsetId, err)
 	} else {
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
@@ -603,11 +606,11 @@ VALUES (?, ?)
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
-		log.Println("marshal failed in put(), err:", err)
+		log.Println("marshal failed, err:", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		log.Println("write response data failed in put(), err:", err)
+		log.Println("write response data failed, err:", err)
 	}
 }
 
@@ -620,7 +623,7 @@ func delToolFmSet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	idPair := IdPair{}
 	err = json.Unmarshal(body, &idPair)
@@ -632,13 +635,13 @@ func delToolFmSet(w http.ResponseWriter, r *http.Request) {
 
 	q := fmt.Sprintf(`
 DELETE FROM %s
-WHERE tool_id = ? AND toolset_id = ?)
+WHERE tool_id = ? AND toolset_id = ?
 	`, toolsetRelTable)
 	result, err := database.Exec(q, idPair.ToolId, idPair.ToolsetId)
 	if err != nil {
 		code = 400
 		msg = "sql query failed"
-		log.Printf("add tool to toolset failed tool_id: %d, toolset_id: %d\n", idPair.ToolId, idPair.ToolsetId)
+		log.Printf("delete tool from toolset failed tool_id: %d, toolset_id: %d err: %s\n", idPair.ToolId, idPair.ToolsetId, err)
 	} else {
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
@@ -653,18 +656,18 @@ WHERE tool_id = ? AND toolset_id = ?)
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
-		log.Println("marshal failed in put(), err:", err)
+		log.Println("marshal failed, err:", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		log.Println("write response data failed in put(), err:", err)
+		log.Println("write response data failed, err:", err)
 	}
 }
 
 type IdsResp struct {
-	Code    int       `json:"code"`
-	Msg     string    `json:"msg"`
-	Ids []int64 `json:"ids"`
+	Code int     `json:"code"`
+	Msg  string  `json:"msg"`
+	Ids  []int64 `json:"ids"`
 }
 
 // id -> [toolsets]
@@ -676,7 +679,7 @@ func getRelByTool(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
@@ -695,7 +698,7 @@ WHERE tool_id = ?
 	if err != nil {
 		code = 400
 		msg = "sql query failed"
-		log.Printf("sql query failed in getRelByTool()")
+		log.Printf("sql query failed in getRelByTool(), err:", err)
 	}
 
 	var ids []int64
@@ -705,15 +708,15 @@ WHERE tool_id = ?
 		if err != nil {
 			code = 400
 			msg = "scan failed"
-			log.Println("scan failed")
+			log.Println("scan failed, err:", err)
 		}
 		ids = append(ids, tmp)
 	}
 
-	resp := IdsResp {
+	resp := IdsResp{
 		Code: code,
-		Msg: msg,
-		Ids: ids,
+		Msg:  msg,
+		Ids:  ids,
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -735,7 +738,7 @@ func getRelByToolset(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		code = 400
 		msg = "internal error"
-		log.Println("Failed to read the request body")
+		log.Println("Failed to read the request body, err:", err)
 	}
 	id := Id{}
 	err = json.Unmarshal(body, &id)
@@ -754,7 +757,7 @@ WHERE toolset_id = ?
 	if err != nil {
 		code = 400
 		msg = "sql query failed"
-		log.Printf("sql query failed in getRelByToolset()")
+		log.Printf("sql query failed in getRelByToolset(), err:", err)
 	}
 
 	var ids []int64
@@ -764,15 +767,15 @@ WHERE toolset_id = ?
 		if err != nil {
 			code = 400
 			msg = "scan failed"
-			log.Println("scan failed")
+			log.Println("scan failed, err:", err)
 		}
 		ids = append(ids, tmp)
 	}
 
-	resp := IdsResp {
+	resp := IdsResp{
 		Code: code,
-		Msg: msg,
-		Ids: ids,
+		Msg:  msg,
+		Ids:  ids,
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -796,13 +799,13 @@ func StartBackend(_db *sql.DB) {
 	http.HandleFunc("/get", get) // using name, basically useless
 	http.HandleFunc("/getid", getUsingId)
 	http.HandleFunc("/del", del)
-	http.HandleFunc("/getset", getRelByTool)
+	http.HandleFunc("/getset", getRelByTool) // array
 
 	http.HandleFunc("/toolset/put", putToolset)
 	http.HandleFunc("/toolset/get", getToolset) // using toolset name, basically useless
 	http.HandleFunc("/toolset/getid", getToolsetUsingId)
 	http.HandleFunc("/toolset/del", del)
-	http.HandleFunc("/toolset/gettool", getRelByToolset)
+	http.HandleFunc("/toolset/gettool", getRelByToolset) // returns an array
 	http.HandleFunc("/toolset/addtool", addToolToSet)
 	http.HandleFunc("/toolset/deltool", delToolFmSet)
 
