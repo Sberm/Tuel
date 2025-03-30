@@ -6,6 +6,7 @@ Programming is tools fetching, this is a tool that helps with that.
 
 ### TODO
 - [ ] Build indices for regex / fuzzy search on name & descriptions
+- [ ] Batch put(), getid(), del(), /addtool, and /deltool
 - [ ] Frontend
 - [x] Proper response for get methods (code and everthing)
 - [x] update and delete of the tools and toolset
