@@ -92,7 +92,6 @@ VALUES (?, ?)
 		log.Printf("put failed in put(), id: \"%d\", name: \"%s\", descr: \"%s\". err: %s",
 			toolWId.Id, toolWId.Name, toolWId.Descr, err)
 	} else {
-		// if sql failed, calling RowsAffected will get runtime error
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
 			// we need to set error because rowsAffected is needed for the logic
@@ -794,18 +793,20 @@ func StartBackend(_db *sql.DB) {
 	db.CreateTablesIfNone(database, toolTable, toolsetTable, toolsetRelTable)
 	db.TurnOnForeignKey(database)
 	http.HandleFunc("/put", put)
-	http.HandleFunc("/get", get)
+	http.HandleFunc("/get", get) // using name, basically useless
 	http.HandleFunc("/getid", getUsingId)
 	http.HandleFunc("/del", del)
 	http.HandleFunc("/getset", getRelByTool)
 
 	http.HandleFunc("/toolset/put", putToolset)
-	http.HandleFunc("/toolset/get", getToolset)
+	http.HandleFunc("/toolset/get", getToolset) // using toolset name, basically useless
 	http.HandleFunc("/toolset/getid", getToolsetUsingId)
 	http.HandleFunc("/toolset/del", del)
 	http.HandleFunc("/toolset/gettool", getRelByToolset)
 	http.HandleFunc("/toolset/addtool", addToolToSet)
 	http.HandleFunc("/toolset/deltool", delToolFmSet)
+
+	AddBatchHandlers(database)
 
 	port := ":9160"
 	fmt.Println("Serving backend on http://localhost" + port)
