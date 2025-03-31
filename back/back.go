@@ -104,7 +104,7 @@ VALUES (?, ?)
 			if toolWId.Id == -1 {
 				msg = "insert failed"
 			} else {
-				msg = "no records found with this id"
+				msg = "no record found with this id"
 			}
 		}
 		log.Println("put() rows affected", rowsAffected)
@@ -141,75 +141,8 @@ VALUES (?, ?)
 	}
 }
 
-// get tool info using name, return [{id, name, descr}]
-func get(w http.ResponseWriter, r *http.Request) {
-	code := 200
-	msg := "success"
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		code = 400
-		msg = "internal error"
-		log.Println("Failed to read the request body, err:", err)
-	}
-	name := Name{}
-	err = json.Unmarshal(body, &name)
-	if err != nil {
-		code = 400
-		msg = "internal error"
-		log.Println("Unmarshal failed, err:", err)
-	}
-	q := fmt.Sprintf(`
-SELECT id, name, descr FROM %s
-WHERE name = ?
-	`, toolTable)
-	rows, err := database.Query(q, name.Name)
-	defer rows.Close()
-	if err != nil {
-		code = 400
-		msg = "sql query failed"
-		log.Printf("select failed in get(), name: \"%s\". err: %s",
-			name.Name, err)
-	}
-
-	var toolsWId []ToolWId
-	var id int64
-	var _name string
-	var descr string
-	for rows.Next() {
-		err = rows.Scan(&id, &_name, &descr)
-		if err != nil {
-			code = 400
-			msg = "scan failed"
-			log.Println("scan failed in get(), err:", err)
-			break
-		}
-		toolsWId = append(toolsWId, ToolWId{Id: id, Name: _name, Descr: descr})
-	}
-
-	type Resp struct {
-		Code    int       `json:"code"`
-		Msg     string    `json:"msg"`
-		ToolWId []ToolWId `json:"tools"`
-	}
-	resp := Resp{
-		Code:    code,
-		Msg:     msg,
-		ToolWId: toolsWId,
-	}
-	data, err := json.Marshal(resp)
-	if err != nil {
-		log.Println("marshal failed in get(), err:", err)
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		log.Println("write response data failed in get(), err:", err)
-	}
-	log.Printf("get(): got %d records\n", len(toolsWId))
-}
-
 // get tool info using id, return {name, descr}
-func getUsingId(w http.ResponseWriter, r *http.Request) {
+func get(w http.ResponseWriter, r *http.Request) {
 	code := 200
 	msg := "success"
 	defer r.Body.Close()
@@ -239,9 +172,9 @@ WHERE id = ?
 		msg = "scan failed"
 		if err == sql.ErrNoRows {
 			recordNr = 0
-			msg = "no records found"
+			msg = "no record found"
 		} else {
-			log.Println("query failed in getUsingId(), err:", err)
+			log.Println("query failed in get(), err:", err)
 		}
 	}
 
@@ -270,13 +203,13 @@ WHERE id = ?
 		data, err = json.Marshal(resp)
 	}
 	if err != nil {
-		log.Println("marshal failed in getUsingId(), err:", err)
+		log.Println("marshal failed in get(), err:", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		log.Println("write response data failed in getUsingId(), err:", err)
+		log.Println("write response data failed in get(), err:", err)
 	}
-	log.Printf("getUsingId(): got %d record\n", recordNr)
+	log.Printf("get(): got %d record\n", recordNr)
 }
 
 // {"id": 1} -> {"code": 200}
@@ -324,6 +257,10 @@ WHERE id = ?
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
 			log.Println("failed to get rows affected, err:", err)
+		}
+		if rowsAffected == 0 {
+			code = 400
+			msg = "nothing to delete"
 		}
 		log.Println("del() rows affected", rowsAffected)
 	}
@@ -422,74 +359,8 @@ VALUES (?, ?)
 	}
 }
 
-// get toolset info using name, return [{id, name, descr}]
-func getToolset(w http.ResponseWriter, r *http.Request) {
-	code := 200
-	msg := "success"
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		code = 400
-		msg = "internal error"
-		log.Println("Failed to read the request body, err:", err)
-	}
-	name := Name{}
-	err = json.Unmarshal(body, &name)
-	if err != nil {
-		code = 400
-		msg = "internal error"
-		log.Println("Unmarshal failed, err:", err)
-	}
-	q := fmt.Sprintf(`
-SELECT id, name, descr FROM %s
-WHERE name = ?
-	`, toolsetTable)
-	rows, err := database.Query(q, name.Name)
-	defer rows.Close()
-	if err != nil {
-		code = 400
-		msg = "sql query failed"
-		log.Printf("select failed in getToolset(), name: \"%s\". err: %s",
-			name.Name, err)
-	}
-	var toolsetsWId []ToolsetWId
-	var id int64
-	var _name string
-	var descr string
-	for rows.Next() {
-		err = rows.Scan(&id, &_name, &descr)
-		if err != nil {
-			code = 400
-			msg = "scan failed"
-			log.Println("scan failed in getToolset(), err:", err)
-			break
-		}
-		toolsetsWId = append(toolsetsWId, ToolsetWId{Id: id, Name: _name, Descr: descr})
-	}
-
-	type Resp struct {
-		Code       int          `json:"code"`
-		Msg        string       `json:"msg"`
-		ToolsetWId []ToolsetWId `json:"toolsets"`
-	}
-	resp := Resp{
-		Code:       code,
-		Msg:        msg,
-		ToolsetWId: toolsetsWId,
-	}
-	data, err := json.Marshal(resp)
-	if err != nil {
-		log.Println("marshal failed in getToolset(), err:", err)
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		log.Println("write response data failed in getToolset(), err:", err)
-	}
-	log.Printf("getToolset(): got %d records\n", len(toolsetsWId))
-}
-
 // get toolset info using id, return {name, descr}
-func getToolsetUsingId(w http.ResponseWriter, r *http.Request) {
+func getToolset(w http.ResponseWriter, r *http.Request) {
 	code := 200
 	msg := "success"
 	defer r.Body.Close()
@@ -519,9 +390,9 @@ WHERE id = ?
 		msg = "scan failed"
 		if err == sql.ErrNoRows {
 			recordNr = 0
-			msg = "no records found"
+			msg = "no record found"
 		} else {
-			log.Println("query failed in getToolsetUsingId(), err:", err)
+			log.Println("query failed in getToolset(), err:", err)
 		}
 	}
 
@@ -550,13 +421,13 @@ WHERE id = ?
 		data, err = json.Marshal(resp)
 	}
 	if err != nil {
-		log.Println("marshal failed in getToolsetUsingId(), err:", err)
+		log.Println("marshal failed in getToolset(), err:", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		log.Println("write response data failed in getToolsetUsingId(), err:", err)
+		log.Println("write response data failed in getToolset(), err:", err)
 	}
-	log.Printf("getToolsetUsingId(): got %d record\n", recordNr)
+	log.Printf("getToolset(): got %d record\n", recordNr)
 }
 
 type IdPair struct {
@@ -646,6 +517,10 @@ WHERE tool_id = ? AND toolset_id = ?
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
 			log.Println("failed to get rows affected, err:", err)
+		}
+		if rowsAffected == 0 {
+			code = 400
+			msg = "nothing to delete"
 		}
 		log.Println("delToolFmSet() rows affected", rowsAffected)
 	}
@@ -788,30 +663,37 @@ WHERE toolset_id = ?
 	log.Printf("got %d records\n", len(ids))
 }
 
+var url string
+var port string
+
+func regHandler(route string, handler func(w http.ResponseWriter, r *http.Request)) {
+	fmt.Printf("%s%s%s\n", url, port, route)
+	http.HandleFunc(route, handler)
+}
+
 func StartBackend(_db *sql.DB) {
 	database = _db
 	toolTable = "tool"
 	toolsetTable = "toolset"
 	toolsetRelTable = "toolset_rel"
+	url = "http://localhost"
+	port = ":9160"
 	db.CreateTablesIfNone(database, toolTable, toolsetTable, toolsetRelTable)
 	db.TurnOnForeignKey(database)
-	http.HandleFunc("/put", put)
-	http.HandleFunc("/get", get) // using name, basically useless
-	http.HandleFunc("/getid", getUsingId)
-	http.HandleFunc("/del", del)
-	http.HandleFunc("/getset", getRelByTool) // array
+	regHandler("/put", put)
+	regHandler("/get", get)
+	regHandler("/del", del)
+	regHandler("/getset", getRelByTool)
 
-	http.HandleFunc("/toolset/put", putToolset)
-	http.HandleFunc("/toolset/get", getToolset) // using toolset name, basically useless
-	http.HandleFunc("/toolset/getid", getToolsetUsingId)
-	http.HandleFunc("/toolset/del", del)
-	http.HandleFunc("/toolset/gettool", getRelByToolset) // returns an array
-	http.HandleFunc("/toolset/addtool", addToolToSet)
-	http.HandleFunc("/toolset/deltool", delToolFmSet)
+	regHandler("/toolset/put", putToolset)
+	regHandler("/toolset/get", getToolset)
+	regHandler("/toolset/del", del)
+	regHandler("/toolset/gettool", getRelByToolset)
+	regHandler("/toolset/addtool", addToolToSet)
+	regHandler("/toolset/deltool", delToolFmSet)
 
-	AddBatchHandlers(database)
+	InitBatchHandlers(database)
 
-	port := ":9160"
-	fmt.Println("Serving backend on http://localhost" + port)
+	fmt.Printf("Serving backend on %s%s\n", url, port)
 	http.ListenAndServe(port, nil)
 }

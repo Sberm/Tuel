@@ -13,3 +13,4 @@ Programming is tools fetching, this is a tool that helps with that.
 - [x] CRUD on the relationship between tools and toolset
 - [x] Refactor db.go
 - [x] error codes
+- [ ] Make empty values have a universal form, e.g. null, empty array etc.

@@ -119,7 +119,7 @@ func putBatch(w http.ResponseWriter, r *http.Request) {
 // [4, 5, 6]
 //
 // [ids] -> [{name, descr}]
-func getUsingIdBatch(w http.ResponseWriter, r *http.Request) {
+func getBatch(w http.ResponseWriter, r *http.Request) {
 	code := 200
 	msg := "success"
 	defer r.Body.Close()
@@ -408,7 +408,7 @@ func putToolsetBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 // [ids] -> [{name, descr}]
-func getToolsetUsingIdBatch(w http.ResponseWriter, r *http.Request) {
+func getToolsetBatch(w http.ResponseWriter, r *http.Request) {
 	code := 200
 	msg := "success"
 	defer r.Body.Close()
@@ -619,19 +619,19 @@ func delToolFmSetBatch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func AddBatchHandlers(_db *sql.DB) {
+func InitBatchHandlers(_db *sql.DB) {
 	database = _db
 	toolTable = "tool"
 	toolsetTable = "toolset"
 	toolsetRelTable = "toolset_rel"
 
-	http.HandleFunc("/put-batch", putBatch)
-	http.HandleFunc("/getid-batch", getUsingIdBatch)
-	http.HandleFunc("/del-batch", delBatch)
+	regHandler("/put-batch", putBatch) // TODO: return inserted and updated ids
+	regHandler("/get-batch", getBatch)
+	regHandler("/del-batch", delBatch)
 
-	http.HandleFunc("/toolset/put-batch", putToolsetBatch)
-	http.HandleFunc("/toolset/getid-batch", getToolsetUsingIdBatch)
-	http.HandleFunc("/toolset/del-batch", delBatch)
-	http.HandleFunc("/toolset/addtool-batch", addToolToSetBatch)
-	http.HandleFunc("/toolset/deltool-batch", delToolFmSetBatch)
+	regHandler("/toolset/put-batch", putToolsetBatch)
+	regHandler("/toolset/get-batch", getToolsetBatch)
+	regHandler("/toolset/del-batch", delBatch)
+	regHandler("/toolset/addtool-batch", addToolToSetBatch)
+	regHandler("/toolset/deltool-batch", delToolFmSetBatch)
 }
