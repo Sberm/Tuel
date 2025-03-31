@@ -212,7 +212,7 @@ WHERE id = ?
 	log.Printf("get(): got %d record\n", recordNr)
 }
 
-// {"id": 1} -> {"code": 200}
+// {id} -> {code, msg}
 // for tool and toolset
 func del(w http.ResponseWriter, r *http.Request) {
 	code := 200
@@ -678,8 +678,10 @@ func StartBackend(_db *sql.DB) {
 	toolsetRelTable = "toolset_rel"
 	url = "http://localhost"
 	port = ":9160"
+
 	db.CreateTablesIfNone(database, toolTable, toolsetTable, toolsetRelTable)
 	db.TurnOnForeignKey(database)
+
 	regHandler("/put", put)
 	regHandler("/get", get)
 	regHandler("/del", del)

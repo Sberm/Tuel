@@ -106,6 +106,7 @@ func putBatch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// currently it's
 // [
 //
 //	{"id": 4}
@@ -114,7 +115,7 @@ func putBatch(w http.ResponseWriter, r *http.Request) {
 //
 // ]
 //
-//	or
+// should I change it to
 //
 // [4, 5, 6]
 //
