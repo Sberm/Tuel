@@ -183,10 +183,6 @@ WHERE id = ?
 		Msg  string `json:"msg"`
 		Tool Tool   `json:"tool"`
 	}
-	type RespOnError struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
-	}
 	var data []byte
 	if code == 200 {
 		resp := Resp{
@@ -196,7 +192,7 @@ WHERE id = ?
 		}
 		data, err = json.Marshal(resp)
 	} else {
-		resp := RespOnError{
+		resp := CodeMsg {
 			Code: code,
 			Msg:  msg,
 		}
@@ -401,10 +397,6 @@ WHERE id = ?
 		Msg     string  `json:"msg"`
 		Toolset Toolset `json:"toolset"`
 	}
-	type RespOnError struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
-	}
 	var data []byte
 	if code == 200 {
 		resp := Resp{
@@ -414,7 +406,7 @@ WHERE id = ?
 		}
 		data, err = json.Marshal(resp)
 	} else {
-		resp := RespOnError{
+		resp := CodeMsg{
 			Code: code,
 			Msg:  msg,
 		}
